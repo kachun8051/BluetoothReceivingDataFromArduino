@@ -1,0 +1,288 @@
+﻿Build1=Default,b4a.example
+File1=1.bal
+FileGroup1=Default Group
+Group=Default Group
+Library1=core
+Library2=randomaccessfile
+Library3=serial
+ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: https://www.b4x.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="10" android:targetSdkVersion="30"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~'End of default text.~\n~
+Module1=AsyncStreamsText
+Module2=Charts
+NumberOfFiles=1
+NumberOfLibraries=3
+NumberOfModules=2
+Version=11.2
+@EndOfDesignText@
+#Region  Project Attributes 
+	#ApplicationLabel: Bluetooth Receiving Data From Arduino
+	#VersionCode: 1
+	#VersionName: 
+	'SupportedOrientations possible values: unspecified, landscape or portrait.
+	#SupportedOrientations: portrait
+	#CanInstallToExternalStorage: False
+#End Region
+
+#Region  Activity Attributes 
+	#FullScreen: False
+	#IncludeTitle: False
+#End Region
+
+Sub Process_Globals
+	'These global variables will be declared once when the application starts.
+	'These variables can be accessed from all modules.
+	Dim admin As BluetoothAdmin
+	Dim serial1 As Serial
+	Dim foundDevices As List
+	Type NameAndMac (Name As String, Mac As String)
+	Dim connectedDevices As NameAndMac
+	
+	Dim connected As Boolean 'ignore
+	Dim ast As AsyncStreamsText
+	
+	Private Timer1 As Timer
+End Sub
+
+Sub Globals
+	'These global variables will be redeclared each time the activity is created.
+	'These variables can only be accessed from this module.
+
+	Private ButtonConnect As Button
+	Private ButtonDisconnect As Button
+	Private PanelGraph As Panel
+	Private LabelData As Label
+	Private ButtonReset As Button
+	
+	Dim Val As Float
+	Dim ValBuf(12) As Float
+	Dim ss, mm As Byte
+	Dim tm, tmbuf(12) As String
+	Dim ValRec As Float
+End Sub
+
+Sub Activity_Create(FirstTime As Boolean)
+	'Do not forget to load the layout file created with the visual designer. For example:
+	'Activity.LoadLayout("Layout1")
+	Activity.LoadLayout("1")
+	Timer1.Initialize("Timer1",100)
+	foundDevices.Initialize
+	DateTime.DateFormat = "HH:mm:ss"
+	
+	ButtonConnect.Enabled = True
+	ButtonDisconnect.Enabled = False
+	ButtonReset.Enabled = False
+	
+	If FirstTime Then
+		connected = False
+		admin.Initialize("admin")
+		serial1.Initialize("serial1")
+		ButtonConnect.Text = "Connect"
+		ButtonDisconnect.Text = "Disconnect"
+		ButtonReset.Text = "Reset"
+		
+	End If
+	ButtonReset_Click
+End Sub
+
+Sub Activity_Resume
+	If admin.IsEnabled = False Then
+		If admin.Enable = False Then
+			ToastMessageShow("Bluetooth is off", True)
+		Else
+			ToastMessageShow("Turn on Bluetooth ...", True)
+		End If
+	Else
+		admin_StateChanged(admin.STATE_ON,0)
+	End If
+End Sub
+
+Sub Activity_Pause (UserClosed As Boolean)
+	If UserClosed Then
+		ast.Close
+		serial1.Disconnect
+		
+		Activity.Finish
+		ExitApplication
+	End If
+End Sub
+
+'*****************************************Bluetooth
+
+Sub admin_StateChanged (NewState As Int, OldState As Int)
+	
+End Sub
+
+Sub admin_DiscoveryFinished
+	ProgressDialogHide
+	If foundDevices.Size = 0 Then
+		ToastMessageShow("Bluetooth devices not found !!!"&CRLF&"Please try again !",True)
+	Else
+		Dim il As List
+		il.Initialize
+		For i=0 To foundDevices.Size-1
+			Dim nm As NameAndMac
+			nm = foundDevices.Get(i)
+			il.Add(nm.Name)
+		Next
+		
+		InputListAsync(il, "Take from a paired device", 0, False)
+		Wait For InputList_Result (Index As Int)
+		If Index <> DialogResponse.CANCEL Then
+			connectedDevices = foundDevices.Get(Index)
+			ProgressDialogShow("Connect with : "&CRLF&connectedDevices.Name&CRLF&"Mac Adr("&connectedDevices.Mac)
+			serial1.Connect(connectedDevices.Mac)
+		End If
+		
+	End If
+End Sub
+
+'*****************************************serial1
+
+Sub serial1_Connected (Success As Boolean)
+	ProgressDialogHide
+	
+	If Success Then
+		ToastMessageShow("Connect successfully",True)
+		connected = True
+		
+		If ast.IsInitialized Then ast.Close
+		ast.Initialize(Me, "ast", serial1.InputStream, serial1.OutputStream)
+	
+		ButtonConnect.Enabled = False
+		ButtonDisconnect.Enabled = True
+		ButtonReset.Enabled = False
+		
+		Timer1.Enabled = True
+	Else
+		connected = False
+		ToastMessageShow("Troubled connecting ...!",True)
+	End If
+End Sub
+
+Sub ast_Error
+	ToastMessageShow("Network Error: " & LastException.Message, True)
+End Sub
+
+Sub ast_Terminated
+	ToastMessageShow("Broken Connection !!!",True)
+End Sub
+
+Sub ast_NewText( Text As String)
+	LabelData.Text = "Potentiometer Value : " & Text
+	ValRec = Text
+End Sub
+
+'*****************************************Line Graph
+Sub graphdraw
+	Dim LD As LineData
+	LD.Initialize
+	LD.Target = PanelGraph
+	Charts.AddLineColor(LD, Colors.Red)
+	
+	Charts.AddLinePoint(LD, tmbuf(0), ValBuf(0), True)
+	Charts.AddLinePoint(LD, tmbuf(1), ValBuf(1), True)
+	Charts.AddLinePoint(LD, tmbuf(2), ValBuf(2), True)
+	Charts.AddLinePoint(LD, tmbuf(3), ValBuf(3), True)
+	Charts.AddLinePoint(LD, tmbuf(4), ValBuf(4), True)
+	Charts.AddLinePoint(LD, tmbuf(5), ValBuf(5), True)
+	Charts.AddLinePoint(LD, tmbuf(6), ValBuf(6), True)
+	Charts.AddLinePoint(LD, tmbuf(7), ValBuf(7), True)
+	Charts.AddLinePoint(LD, tmbuf(8), ValBuf(8), True)
+	Charts.AddLinePoint(LD, tmbuf(9), ValBuf(9), True)
+	Charts.AddLinePoint(LD, tmbuf(10), ValBuf(10), True)
+	Charts.AddLinePoint(LD, tmbuf(11), ValBuf(11), True)
+	
+	'text around graph
+	Dim G As Graph
+	G.Initialize
+	G.Title = "Value & Time"
+	G.XAxis = "Time (Minute:Second)"
+	G.YAxis = "Value"
+	G.YStart = 0
+	G.YEnd = 300
+	G.YInterval = G.YEnd / 10
+	'G.YInterval = 20
+	G.AxisColor = Colors.Black
+	Charts.DrawLineChart(G, LD, Colors.White)
+End Sub
+
+'*****************************************Timer1
+Sub TImer1_Tick
+	Val = ValRec
+	
+	ValBuf(0) = ValBuf(1)
+	ValBuf(1) = ValBuf(2)
+	ValBuf(2) = ValBuf(3)
+	ValBuf(3) = ValBuf(4)
+	ValBuf(4) = ValBuf(5)
+	ValBuf(5) = ValBuf(6)
+	ValBuf(6) = ValBuf(7)
+	ValBuf(7) = ValBuf(8)
+	ValBuf(8) = ValBuf(9)
+	ValBuf(9) = ValBuf(10)
+	ValBuf(10) = ValBuf(11)
+	ValBuf(11) = Val
+
+	ss = DateTime.GetSecond(DateTime.Now)
+	mm = DateTime.GetMinute(DateTime.Now)
+	
+	tm = mm & ":" & ss
+	
+	tmbuf(0) = tmbuf(1)
+	tmbuf(1) = tmbuf(2)
+	tmbuf(2) = tmbuf(3)
+	tmbuf(3) = tmbuf(4)
+	tmbuf(4) = tmbuf(5)
+	tmbuf(5) = tmbuf(6)
+	tmbuf(6) = tmbuf(7)
+	tmbuf(7) = tmbuf(8)
+	tmbuf(8) = tmbuf(9)
+	tmbuf(9) = tmbuf(10)
+	tmbuf(10) = tmbuf(11)
+	tmbuf(11) = tm
+	
+	graphdraw
+End Sub
+
+Sub ButtonConnect_Click
+	Dim pairedDevices As Map
+	pairedDevices = serial1.GetPairedDevices
+	Dim il As List
+	il.Initialize
+	For i=0 To pairedDevices.Size - 1
+		il.Add(pairedDevices.GetKeyAt(i))
+	Next
+	
+	InputListAsync(il, "Select a device", 0, False)
+	Wait For InputList_Result (Index As Int)
+	If Index <> DialogResponse.CANCEL Then
+		serial1.Connect(pairedDevices.Get(il.Get(Index)))
+	End If
+		
+End Sub
+
+Sub ButtonDisconnect_Click
+	ast.Close
+	serial1.Disconnect
+	connected = False
+	ButtonConnect.Enabled = True
+	ButtonDisconnect.Enabled = False
+	ButtonReset.Enabled = True
+	Timer1.Enabled = False
+End Sub
+
+Sub ButtonReset_Click
+	LabelData.Text = "Potentiometer Value : 0"
+	ValBuf(0) = 0
+	ValBuf(1) = 0
+	ValBuf(2) = 0
+	ValBuf(3) = 0
+	ValBuf(4) = 0
+	ValBuf(5) = 0
+	ValBuf(6) = 0
+	ValBuf(7) = 0
+	ValBuf(8) = 0
+	ValBuf(9) = 0
+	ValBuf(10) = 0
+	ValBuf(11) = 0
+	graphdraw
+End Sub
