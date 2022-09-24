@@ -166,9 +166,29 @@ Sub ast_Terminated
 	ToastMessageShow("Broken Connection !!!",True)
 End Sub
 
-Sub ast_NewText( Text As String)
-	LabelData.Text = "Potentiometer Value : " & Text
-	ValRec = Text
+Sub ast_NewText( Text As String)	
+	If IsNumber(Text) Then
+		ValRec = Text
+		LabelData.Text = "Potentiometer Value : " & Text
+		Return
+	End If
+	If Text.Length = 19 Then
+		Log("Message received: " & Text)
+		ValRec = NumericReading(Text)
+		LabelData.Text = "Weighting Scale Value : " & Round2(ValRec, 3) & " g"
+	End If
+End Sub
+' Try parsing and extract numeric value from electronic scale
+Sub NumericReading(i_reading As String) As Double
+	Dim matcher1 As Matcher
+	matcher1 = Regex.Matcher("[\d\s]+\.[\d\s]+", i_reading)
+	Do While matcher1.Find = True
+		Dim tmp As String = matcher1.Match.Trim
+		If IsNumber(tmp) Then
+			Return tmp.As(Double)
+		End If
+	Loop
+	Return 0
 End Sub
 
 '*****************************************Line Graph
