@@ -1,16 +1,19 @@
 ﻿Build1=Default,b4a.example
 File1=1.bal
+File2=ScaleReading.bal
 FileGroup1=Default Group
+FileGroup2=Default Group
 Group=Default Group
 Library1=core
 Library2=randomaccessfile
 Library3=serial
 ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: https://www.b4x.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="10" android:targetSdkVersion="30"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~'End of default text.~\n~
-Module1=AsyncStreamsText
-Module2=Charts
-NumberOfFiles=1
+Module1=|relative|..\ActWeightReading
+Module2=AsyncStreamsText
+Module3=Charts
+NumberOfFiles=2
 NumberOfLibraries=3
-NumberOfModules=2
+NumberOfModules=3
 Version=11.2
 @EndOfDesignText@
 #Region  Project Attributes 
@@ -31,7 +34,7 @@ Sub Process_Globals
 	'These global variables will be declared once when the application starts.
 	'These variables can be accessed from all modules.
 	Dim admin As BluetoothAdmin
-	Dim serial1 As Serial
+	Private serial1 As Serial
 	Dim foundDevices As List
 	Type NameAndMac (Name As String, Mac As String)
 	Dim connectedDevices As NameAndMac
@@ -57,6 +60,7 @@ Sub Globals
 	Dim ss, mm As Byte
 	Dim tm, tmbuf(12) As String
 	Dim ValRec As Float
+	Private ButtonNext As Button
 End Sub
 
 Sub Activity_Create(FirstTime As Boolean)
@@ -305,4 +309,8 @@ Sub ButtonReset_Click
 	ValBuf(10) = 0
 	ValBuf(11) = 0
 	graphdraw
+End Sub
+
+Private Sub ButtonNext_Click
+	StartActivity(ActWeightReading)
 End Sub
